@@ -4219,6 +4219,7 @@
     <string name="VoipVideoPrivateScreenSharing">Everything on your screen, including notifications, will be shared.</string>
     <string name="VoipVideoScreenStopSharing">STOP SHARING</string>
     <string name="VoipPhoneScreen">PHONE SCREEN</string>
+    <string name="VoipNotifyMe">Notify ME</string>
     <string name="VoipFrontCamera">FRONT CAMERA</string>
     <string name="VoipBackCamera">BACK CAMERA</string>
     <string name="VoipShareVideo">Share Video</string>

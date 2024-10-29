@@ -12,6 +12,7 @@ import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
+import android.app.Activity;
 import android.app.Dialog;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -29,6 +30,7 @@ import android.graphics.Typeface;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.SystemClock;
+import android.provider.Settings;
 import android.text.Layout;
 import android.text.SpannableStringBuilder;
 import android.text.Spanned;
@@ -41,6 +43,7 @@ import android.view.HapticFeedbackConstants;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowManager;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.widget.Button;
 import android.widget.FrameLayout;
@@ -56,6 +59,7 @@ import org.telegram.messenger.AnimationNotificationsLocker;
 import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.ContactsController;
 import org.telegram.messenger.DialogObject;
+import org.telegram.messenger.FileLog;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.LocationController;
 import org.telegram.messenger.MediaController;
@@ -156,6 +160,9 @@ public class FragmentContextView extends FrameLayout implements NotificationCent
     private StaticLayout timeLayout;
     private RectF rect = new RectF();
     private boolean scheduleRunnableScheduled;
+    private FrameLayout notifyScheduledCallLayout;
+    private boolean showScheduledCallNotify;
+    private int notifyScheduledCallReqId = -1;
     private final Runnable updateScheduleTimeRunnable = new Runnable() {
         @Override
         public void run() {
@@ -318,8 +325,15 @@ public class FragmentContextView extends FrameLayout implements NotificationCent
                     matrix.reset();
                     matrix.postTranslate(-gradientWidth * 0.7f * moveProgress, 0);
                     linearGradient.setLocalMatrix(matrix);
+
+
+
                     int x = getMeasuredWidth() - width - AndroidUtilities.dp(10);
                     int y = AndroidUtilities.dp(10);
+                    if (showScheduledCallNotify) {
+                        updateNotifyCallParams(rect, x, y);
+                    }
+
                     rect.set(0, 0, width, AndroidUtilities.dp(28));
                     canvas.save();
                     canvas.translate(x, y);
@@ -469,6 +483,48 @@ public class FragmentContextView extends FrameLayout implements NotificationCent
         if (flickOnAttach) {
             startJoinFlickerAnimation();
         }
+
+        notifyScheduledCallLayout = new FrameLayout(context);
+        notifyScheduledCallLayout.setBackground(
+                Theme.createSimpleSelectorRoundRectDrawable(
+                        AndroidUtilities.dp(16),
+                        Color.TRANSPARENT,
+                        getThemedColor(Theme.key_actionBarDefaultSubmenuItem) & 0x4bffffff));
+        addView(notifyScheduledCallLayout, new MarginLayoutParams(0, 0));
+
+        notifyScheduledCallLayout.setOnClickListener(v -> {
+            if (fragment == null || chatActivity == null) {
+                return;
+            }
+
+            boolean isChannel = ChatObject.isChannelOrGiga(chatActivity.getCurrentChat());
+            ConnectionsManager connectionsManager = fragment.getConnectionsManager();
+
+            if (connectionsManager.getConnectionState() != ConnectionsManager.ConnectionStateConnected) {
+                Activity activity = fragment.getParentActivity();
+                if (activity == null) {
+                    return;
+                }
+
+                boolean isAirplaneMode = Settings.System.getInt(
+                        activity.getContentResolver(),
+                        Settings.System.AIRPLANE_MODE_ON,
+                        0) != 0;
+
+                showOfflineDialog(activity, isAirplaneMode, isChannel);
+                return;
+            }
+
+            ChatObject.Call call = chatActivity.getGroupCall();
+            if (call == null) {
+                return;
+            }
+
+            sendGroupCallStartSubscription(connectionsManager, call, isChannel);
+        });
+
+        notifyScheduledCallLayout.setVisibility(View.GONE);
+
 
         silentButton = new FrameLayout(context);
         silentButtonImage = new ImageView(context);
@@ -751,6 +807,101 @@ public class FragmentContextView extends FrameLayout implements NotificationCent
     }
 
     private boolean slidingSpeed;
+
+    private void updateNotifyCallParams(RectF rect, int x, int y) {
+        if (notifyScheduledCallLayout == null) {
+            return;
+        }
+
+        ViewGroup.LayoutParams layoutParams = notifyScheduledCallLayout.getLayoutParams();
+        if (!(layoutParams instanceof ViewGroup.MarginLayoutParams)) {
+            // If layoutParams is not an instance of MarginLayoutParams, we cannot proceed
+            return;
+        }
+
+        ViewGroup.MarginLayoutParams params = (ViewGroup.MarginLayoutParams) layoutParams;
+
+        int newWidth = (int) rect.width();
+        int newHeight = (int) rect.height();
+
+        if (params.leftMargin == x &&
+                params.topMargin == y &&
+                params.width == newWidth &&
+                params.height == newHeight) {
+            return;
+        }
+
+        params.width = newWidth;
+        params.height = newHeight;
+        params.leftMargin = x;
+        params.topMargin = y;
+
+        notifyScheduledCallLayout.setLayoutParams(params);
+    }
+
+
+    private void showOfflineDialog(Activity activity, boolean isAirplaneMode, boolean isChannel) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(activity)
+                .setTitle(isAirplaneMode
+                        ? LocaleController.getString(R.string.VoipOfflineAirplaneTitle)
+                        : LocaleController.getString(R.string.VoipOfflineTitle))
+                .setMessage(isAirplaneMode
+                        ? LocaleController.getString(isChannel
+                        // TODO : update string values
+                        ? R.string.VoipNotifyMe
+                        : R.string.VoipNotifyMe)
+                        : LocaleController.getString(isChannel
+                        ? R.string.VoipNotifyMe
+                        : R.string.VoipNotifyMe))
+                .setPositiveButton(LocaleController.getString(R.string.OK), null);
+
+        if (isAirplaneMode) {
+            final Intent settingsIntent = new Intent(Settings.ACTION_AIRPLANE_MODE_SETTINGS);
+            if (settingsIntent.resolveActivity(activity.getPackageManager()) != null) {
+                builder.setNeutralButton(LocaleController.getString(R.string.VoipOfflineOpenSettings),
+                        (dialog, which) -> activity.startActivity(settingsIntent));
+            }
+        }
+
+        try {
+            builder.show();
+        } catch (WindowManager.BadTokenException e) {
+            FileLog.e(e);
+        }
+    }
+
+    private void sendGroupCallStartSubscription(
+            ConnectionsManager connectionsManager,
+            ChatObject.Call call,
+            boolean isChannel) {
+
+        TLRPC.TL_phone_toggleGroupCallStartSubscription request =
+                new TLRPC.TL_phone_toggleGroupCallStartSubscription();
+        request.call = call.getInputGroupCall();
+        request.subscribed = true;
+
+        if (notifyScheduledCallReqId != -1) {
+            connectionsManager.cancelRequest(notifyScheduledCallReqId, false);
+        }
+
+        notifyScheduledCallReqId = connectionsManager.sendRequest(
+                request,
+                (response, error) -> {
+                    if (error != null) {
+                        return;
+                    }
+                    if (response != null && fragment != null) {
+                        fragment.getMessagesController().processUpdates((TLRPC.Updates) response, false);
+                        AndroidUtilities.runOnUIThread(() ->
+                                showCallNotification(isChannel));
+                    }
+                },
+                ConnectionsManager.RequestFlagFailOnServerErrors);
+    }
+    private void showCallNotification(boolean isChannel) {
+        if (fragment == null) return;
+        BulletinFactory.of(fragment).createSimpleBulletin(R.raw.silent_unmute, LocaleController.getString(isChannel ? R.string.VoipNotifyMe : R.string.VoipNotifyMe)).show();
+    }
 
     private void createPlaybackSpeedButton() {
         if (playbackSpeedButton != null) {
@@ -1075,6 +1226,7 @@ public class FragmentContextView extends FrameLayout implements NotificationCent
             }
             titleTextView.setTag(Theme.key_inappPlayerTitle);
             subtitleTextView.setVisibility(GONE);
+            notifyScheduledCallLayout.setVisibility(GONE);
             joinButton.setVisibility(GONE);
             closeButton.setVisibility(GONE);
             playButton.setVisibility(GONE);
@@ -1094,6 +1246,7 @@ public class FragmentContextView extends FrameLayout implements NotificationCent
             frameLayout.setTag(Theme.key_inappPlayerBackground);
 
             subtitleTextView.setVisibility(GONE);
+            notifyScheduledCallLayout.setVisibility(GONE);
             joinButton.setVisibility(GONE);
             closeButton.setVisibility(VISIBLE);
             playButton.setVisibility(VISIBLE);
@@ -1212,6 +1365,7 @@ public class FragmentContextView extends FrameLayout implements NotificationCent
             closeButton.setVisibility(GONE);
             playButton.setVisibility(GONE);
             subtitleTextView.setVisibility(GONE);
+            notifyScheduledCallLayout.setVisibility(GONE);
             joinButton.setVisibility(GONE);
 
             titleTextView.setLayoutParams(LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER, 0, 0, 0, 2));
@@ -1321,10 +1475,7 @@ public class FragmentContextView extends FrameLayout implements NotificationCent
                 muteButton.invalidate();
             }
         } else if (currentStyle == STYLE_INACTIVE_GROUP_CALL) {
-            if (!scheduleRunnableScheduled) {
-                scheduleRunnableScheduled = true;
-                updateScheduleTimeRunnable.run();
-            }
+            updateScheduleButtonVisibility();
         }
 
         if (visible && topPadding == 0) {
@@ -2114,12 +2265,15 @@ public class FragmentContextView extends FrameLayout implements NotificationCent
                         }
                     }
                     subtitleTextView.setText(LocaleController.formatStartsTime(call.call.schedule_date, 4), false);
-                    if (!scheduleRunnableScheduled) {
-                        scheduleRunnableScheduled = true;
-                        updateScheduleTimeRunnable.run();
-                    }
+                    // Determine whether to show the scheduled call notification
+                    showScheduledCallNotify = !call.call.schedule_start_subscribed;
+                    notifyScheduledCallLayout.setVisibility(showScheduledCallNotify ? View.VISIBLE : View.GONE);
+                    updateScheduleButtonVisibility();
+
+
                 } else {
                     timeLayout = null;
+                    notifyScheduledCallLayout.setVisibility(GONE);
                     joinButton.setVisibility(VISIBLE);
                     if (!TextUtils.isEmpty(call.call.title)) {
                         titleTextView.setText(call.call.title, false);
@@ -2195,6 +2349,28 @@ public class FragmentContextView extends FrameLayout implements NotificationCent
                 visible = true;
                 setVisibility(VISIBLE);
             }
+        }
+    }
+
+    private void updateScheduleButtonVisibility() {
+        if (!showScheduledCallNotify && !scheduleRunnableScheduled) {
+            scheduleRunnableScheduled = true;
+            updateScheduleTimeRunnable.run();
+        } else if (showScheduledCallNotify) {
+            // TODO: Update string resource IDs
+            String displayText = LocaleController.getString(R.string.VoipNotifyMe);
+            int textWidth = (int) Math.ceil(gradientTextPaint.measureText(displayText));
+
+            timeLayout = new StaticLayout(
+                    displayText,
+                    gradientTextPaint,
+                    textWidth,
+                    Layout.Alignment.ALIGN_NORMAL,
+                    1.0f,
+                    0.0f,
+                    false
+            );
+            frameLayout.invalidate();
         }
     }
 

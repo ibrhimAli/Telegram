@@ -76,7 +76,6 @@ import android.text.style.ClickableSpan;
 import android.text.style.ForegroundColorSpan;
 import android.text.style.ImageSpan;
 import android.text.style.URLSpan;
-import android.util.Log;
 import android.util.Pair;
 import android.util.Property;
 import android.util.SparseArray;
@@ -222,7 +221,6 @@ import org.telegram.ui.Cells.ChatUnreadCell;
 import org.telegram.ui.Cells.CheckBoxCell;
 import org.telegram.ui.Cells.ContextLinkCell;
 import org.telegram.ui.Cells.DialogCell;
-import org.telegram.ui.Cells.HintDialogCell;
 import org.telegram.ui.Cells.MentionCell;
 import org.telegram.ui.Cells.ProfileChannelCell;
 import org.telegram.ui.Cells.ShareDialogCell;
@@ -270,7 +268,6 @@ import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.net.IDN;
 import java.net.URLDecoder;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -525,6 +522,8 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
     private boolean scrollingChatListView;
     private boolean checkTextureViewPosition;
     private boolean searchingForUser;
+    private HintView2 bottomOverlayStartButtonTooltip;
+    private BotStartHintDrawable botHintIconStarter;
     private TLRPC.User searchingUserMessages;
     private TLRPC.Chat searchingChatMessages;
     public static boolean scrolling;
@@ -1230,6 +1229,85 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
     public boolean isForumInViewAsMessagesMode() {
         return ChatObject.isForum(currentChat) && !isTopic;
     }
+
+    // Method to show the bot start hint
+    private void checkBotStartHint() {
+        if (bottomOverlayStartButtonTooltip != null) {
+            return;
+        }
+
+        initializeStartBotHint();
+
+        contentView.post(this::addStartBotHintToContentView);
+    }
+
+    // Method to hide the bot start hint
+    private void hideBotStartHint() {
+        if (botHintIconStarter != null) {
+            botHintIconStarter.stop();
+            botHintIconStarter = null;
+        }
+        if (bottomOverlayStartButtonTooltip != null) {
+            HintView2 hint = bottomOverlayStartButtonTooltip;
+            hint.setOnHiddenListener(() -> contentView.removeView(hint));
+            bottomOverlayStartButtonTooltip.hide();
+            bottomOverlayStartButtonTooltip = null;
+        }
+    }
+
+    // Helper method to initialize the startBotHint and its icon
+    private void initializeStartBotHint() {
+        Context context = getContext();
+
+        bottomOverlayStartButtonTooltip = new HintView2(context, HintView2.DIRECTION_BOTTOM);
+        bottomOverlayStartButtonTooltip.setCloseButton(false);
+
+        // Initialize and configure the startBotHintIcon
+        botHintIconStarter = new BotStartHintDrawable(context);
+        botHintIconStarter.setColorFilter(new PorterDuffColorFilter(
+                getThemedColor(Theme.key_chat_gifSaveHintText), PorterDuff.Mode.MULTIPLY));
+        botHintIconStarter.setSize(dp(20), dp(20));
+        bottomOverlayStartButtonTooltip.setIcon(botHintIconStarter);
+
+        // Start the icon animation if conditions are met
+        if (!SharedConfig.deviceIsLow() && !LiteMode.isPowerSaverApplied()) {
+            botHintIconStarter.start();
+        }
+
+        // Configure the startBotHint appearance and behavior
+        bottomOverlayStartButtonTooltip.setMultilineText(false);
+        bottomOverlayStartButtonTooltip.setTextAlign(Layout.Alignment.ALIGN_CENTER);
+        bottomOverlayStartButtonTooltip.setRounding(12);
+        bottomOverlayStartButtonTooltip.setTextTypeface(AndroidUtilities.bold());
+        bottomOverlayStartButtonTooltip.setTextSize(16);
+        bottomOverlayStartButtonTooltip.setBgColor(getThemedColor(Theme.key_chat_gifSaveHintBackground));
+        bottomOverlayStartButtonTooltip.setTextColor(getThemedColor(Theme.key_chat_gifSaveHintText));
+        // TODO: update string
+        bottomOverlayStartButtonTooltip.setText(LocaleController.getString(R.string.Bot));
+        bottomOverlayStartButtonTooltip.setDuration(-1);
+        bottomOverlayStartButtonTooltip.setInnerPadding(16, 11, 16, 11);
+        bottomOverlayStartButtonTooltip.setIconTranslate(dp(4), dp(1));
+    }
+
+    // Helper method to add startBotHint to contentView
+    private void addStartBotHintToContentView() {
+        if (bottomOverlayStartButtonTooltip == null) {
+            return;
+        }
+
+        int bottomMargin = bottomOverlayChat.getMeasuredHeight() + AndroidUtilities.dp(6);
+
+        FrameLayout.LayoutParams layoutParams = LayoutHelper.createFrame(
+                LayoutHelper.MATCH_PARENT,
+                LayoutHelper.WRAP_CONTENT,
+                Gravity.BOTTOM | Gravity.FILL_HORIZONTAL,
+                16, 0, 16, 0);
+        layoutParams.bottomMargin = bottomMargin;
+
+        contentView.addView(bottomOverlayStartButtonTooltip, layoutParams);
+        bottomOverlayStartButtonTooltip.show();
+    }
+
 
     @Override
     public List<FloatingDebugController.DebugItem> onGetDebugItems() {
@@ -3301,6 +3379,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
         videoPlayerContainer = null;
         voiceHintTextView = null;
         blurredView = null;
+        bottomOverlayStartButtonTooltip = null;
         dummyMessageCell = null;
         cantDeleteMessagesCount = 0;
         canEditMessagesCount = 0;
@@ -8007,6 +8086,9 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
             if (getParentActivity() == null || pullingDownOffset != 0) {
                 return;
             }
+//            if (bottomOverlayStartButtonTooltip != null && bottomOverlayStartButtonTooltip.shown()) {
+//                bottomOverlayStartButtonTooltip.hide();
+//            }
             if (chatMode == MODE_SAVED) {
                 Bundle args = new Bundle();
                 long dialogId = getSavedDialogId();
@@ -8062,6 +8144,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                 }
                 botUser = null;
                 updateBottomOverlay();
+                hideBotStartHint();
             } else {
                 if (ChatObject.isChannel(currentChat) && !(currentChat instanceof TLRPC.TL_channelForbidden)) {
                     if (ChatObject.isNotInChat(currentChat)) {
@@ -17233,6 +17316,9 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
             if (hashtagSearchTabs != null) {
                 hashtagSearchTabs.setTranslationY(0);
             }
+//            if (bottomOverlayStartButtonTooltip != null) {
+//                bottomOverlayStartButtonTooltip.setTranslationY(0);
+//            }
             emptyViewContainer.setTranslationY(0);
             progressView.setTranslationY(0);
             contentPanTranslation = 0;
@@ -19977,6 +20063,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                     if (!isInsideContainer) {
                         chatActivityEnterView.setVisibility(View.VISIBLE);
                     }
+                    hideBotStartHint();
                     chatActivityEnterView.setBotInfo(botInfo);
                 }
             }
@@ -25211,6 +25298,9 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
 //                bottomOverlayStartButton.setText(LocaleController.getString(R.string.BotStart));
                 if (bottomOverlayStartButton != null) {
                     bottomOverlayStartButton.setVisibility(View.VISIBLE);
+//                    if (bottomOverlayStartButtonTooltip != null) {
+//                        bottomOverlayStartButtonTooltip.show();
+//                    }
                 }
                 bottomOverlayChatText.setVisibility(View.GONE);
                 chatActivityEnterView.hidePopup(false);
@@ -25221,6 +25311,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                 if (!messages.isEmpty() && currentUser != null && botUser.length() != 0) {
                     sentBotStart = true;
                 }
+                checkBotStartHint();
             } else {
                 bottomOverlayChatText.setText(LocaleController.getString(R.string.DeleteThisChat));
             }
@@ -25366,6 +25457,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
             if (isInsideContainer || forceNoBottom) {
                 bottomOverlayChat.setVisibility(View.GONE);
                 chatActivityEnterView.setVisibility(View.GONE);
+                hideBotStartHint();
             } else if (isReport()) {
                 bottomOverlayChat.setVisibility(View.VISIBLE);
                 chatActivityEnterView.setVisibility(View.INVISIBLE);
@@ -25403,6 +25495,9 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                     chatActivityEnterView.setVisibility(View.INVISIBLE);
                 } else {
                     bottomOverlayChat.setVisibility(View.INVISIBLE);
+//                    if (bottomOverlayStartButtonTooltip != null && bottomOverlayStartButtonTooltip.shown()) {
+//                        bottomOverlayStartButtonTooltip.hide(false);
+//                    }
                     chatActivityEnterView.setVisibility(View.VISIBLE);
                 }
             }
@@ -25412,6 +25507,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
             }
         }
         if (sentBotStart) {
+            hideBotStartHint();
             bottomOverlayChat.setVisibility(View.GONE);
             chatActivityEnterView.setVisibility(View.VISIBLE);
             chatActivityEnterView.setBotInfo(botInfo);
@@ -29639,7 +29735,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                                             scrimPopupWindow.dismiss();
                                         }
                                     }
-                                }, 100);
+                                }, 10);
 
                                 int[] startLocation = new int[2];
                                 view.getLocationOnScreen(startLocation);
@@ -38228,7 +38324,8 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
 
         themeDescriptions.add(new ThemeDescription(forwardHintView, ThemeDescription.FLAG_TEXTCOLOR, new Class[]{HintView.class}, new String[]{"textView"}, null, null, null, Theme.key_chat_gifSaveHintText));
         themeDescriptions.add(new ThemeDescription(forwardHintView, ThemeDescription.FLAG_TEXTCOLOR, new Class[]{HintView.class}, new String[]{"arrowImageView"}, null, null, null, Theme.key_chat_gifSaveHintBackground));
-
+        themeDescriptions.add(new ThemeDescription(bottomOverlayStartButtonTooltip, ThemeDescription.FLAG_BACKGROUNDFILTER, null, null, null, null, Theme.key_chat_gifSaveHintBackground));
+        themeDescriptions.add(new ThemeDescription(bottomOverlayStartButtonTooltip, ThemeDescription.FLAG_TEXTCOLOR, null, null, null, null, Theme.key_chat_gifSaveHintText));
         themeDescriptions.add(new ThemeDescription(pagedownButtonCounter, ThemeDescription.FLAG_BACKGROUNDFILTER, null, null, null, null, Theme.key_chat_goDownButtonCounterBackground));
         themeDescriptions.add(new ThemeDescription(pagedownButtonCounter, ThemeDescription.FLAG_TEXTCOLOR, null, null, null, null, Theme.key_chat_goDownButtonCounter));
         themeDescriptions.add(new ThemeDescription(pagedownButtonImage, ThemeDescription.FLAG_BACKGROUNDFILTER, null, null, null, null, Theme.key_chat_goDownButton));
