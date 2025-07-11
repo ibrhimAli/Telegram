@@ -186,7 +186,7 @@ public class ProfileBirthdayEffect extends View {
 
     private void updateSourcePoint() {
         RecyclerListView listView = profileActivity.getListView();
-        final int position = profileActivity.birthdayRow;
+        final int position = profileActivity.getComponentsFactory().getRowsAndStatusComponentsHolder().getBirthdayRow();
         if (position < 0) return;
         for (int i = 0; i < listView.getChildCount(); ++i) {
             View child = listView.getChildAt(i);

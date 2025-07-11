@@ -273,6 +273,7 @@ import org.telegram.ui.bots.BotAdView;
 import org.telegram.ui.bots.BotCommandsMenuView;
 import org.telegram.ui.bots.BotWebViewSheet;
 import org.telegram.ui.bots.WebViewRequestProps;
+import org.telegram.ui.profile.drawable.ShowDrawable;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -32253,7 +32254,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
             if (toIndex > 0) {
                 string = string.substring(0, toIndex) + string.substring(toIndex + 2);
                 ssb = new SpannableStringBuilder(string);
-                ProfileActivity.ShowDrawable drawable = new ProfileActivity.ShowDrawable(string.substring(fromIndex, toIndex));
+                ShowDrawable drawable = new ShowDrawable(string.substring(fromIndex, toIndex));
                 drawable.setTextColor(Color.WHITE);
                 drawable.setBackgroundColor(0x1e000000);
                 drawable.setBounds(0, 0, drawable.getIntrinsicWidth(), drawable.getIntrinsicHeight());

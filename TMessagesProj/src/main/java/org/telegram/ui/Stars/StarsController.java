@@ -2683,9 +2683,9 @@ public class StarsController {
                         MessagesController.getInstance(currentAccount).putChatFull(chatFull);
                     }
                     if (fragment instanceof ProfileActivity && ((ProfileActivity) fragment).getDialogId() == dialogId) {
-                        if (((ProfileActivity) fragment).sharedMediaLayout != null) {
-                            ((ProfileActivity) fragment).sharedMediaLayout.updateTabs(true);
-                            ((ProfileActivity) fragment).sharedMediaLayout.scrollToPage(SharedMediaLayout.TAB_GIFTS);
+                        if (((ProfileActivity) fragment).getSharedMediaLayout() != null) {
+                            ((ProfileActivity) fragment).getSharedMediaLayout().updateTabs(true);
+                            ((ProfileActivity) fragment).getSharedMediaLayout().scrollToPage(SharedMediaLayout.TAB_GIFTS);
                             ((ProfileActivity) fragment).scrollToSharedMedia();
                         }
                         BulletinFactory.of(fragment).createEmojiBulletin(gift.sticker, getString(R.string.StarsGiftCompleted), AndroidUtilities.replaceTags(formatPluralString("StarsGiftCompletedChannelText", (int) stars, name))).show(false);
@@ -2696,8 +2696,8 @@ public class StarsController {
                         final ProfileActivity profileActivity = new ProfileActivity(args);
                         profileActivity.whenFullyVisible(() -> {
                             AndroidUtilities.runOnUIThread(() -> {
-                                if (profileActivity.sharedMediaLayout != null) {
-                                    profileActivity.sharedMediaLayout.scrollToPage(SharedMediaLayout.TAB_GIFTS);
+                                if (profileActivity.getSharedMediaLayout() != null) {
+                                    profileActivity.getSharedMediaLayout().scrollToPage(SharedMediaLayout.TAB_GIFTS);
                                     profileActivity.scrollToSharedMedia();
                                 }
                             }, 200);

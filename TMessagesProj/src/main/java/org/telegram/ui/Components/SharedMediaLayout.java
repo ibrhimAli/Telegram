@@ -142,7 +142,6 @@ import org.telegram.ui.Stories.bots.BotPreviewsEditContainer;
 import org.telegram.ui.Stories.recorder.ButtonWithCounterView;
 import org.telegram.ui.Stories.recorder.StoryRecorder;
 import org.telegram.ui.TopicsFragment;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -248,7 +247,7 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
             }
             if (ev.getActionMasked() == MotionEvent.ACTION_DOWN) {
                 View view = (View) getParent();
-               // float x = ev.getX() - view.getX() - getX() - mediaPages[0].getX();
+                // float x = ev.getX() - view.getX() - getX() - mediaPages[0].getX();
                 float y = ev.getY() - view.getY() - getY() - mediaPages[0].getY();
                 if (y > 0) {
                     maybePinchToZoomTouchMode = true;
@@ -435,10 +434,10 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
         if (profileActivity.getMessagesController().getStoriesController().hasStories(dialogCell.getDialogId())) {
             profileActivity.getOrCreateStoryViewer().doOnAnimationReady(onDone);
             profileActivity.getOrCreateStoryViewer().open(
-                profileActivity.getContext(),
-                dialogCell.getDialogId(),
-                StoriesListPlaceProvider.of((RecyclerListView) dialogCell.getParent())
-                    .addBottomClip(profileActivity instanceof ProfileActivity && ((ProfileActivity) profileActivity).myProfile ? dp(68) : 0)
+                    profileActivity.getContext(),
+                    dialogCell.getDialogId(),
+                    StoriesListPlaceProvider.of((RecyclerListView) dialogCell.getParent())
+                            .addBottomClip(profileActivity instanceof ProfileActivity && ((ProfileActivity) profileActivity).isMyProfile() ? dp(68) : 0)
             );
         }
     }
@@ -1872,67 +1871,67 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
                         });
                     }
                     o
-                        .setOnTopOfScrim()
-                        .setDismissWithButtons(false)
-                        .setDimAlpha(0)
-                        .show();
+                            .setOnTopOfScrim()
+                            .setDismissWithButtons(false)
+                            .setDimAlpha(0)
+                            .show();
                     return;
                 }
 
                 if (tab == TAB_BOT_PREVIEWS && user != null && user.bot && user.bot_has_main_app && user.bot_can_edit && botPreviewsContainer != null) {
                     ItemOptions.makeOptions(profileActivity, photoVideoOptionsItem)
-                        .addIf(botPreviewsContainer.getItemsCount() < profileActivity.getMessagesController().botPreviewMediasMax, R.drawable.msg_addbot, getString(R.string.ProfileBotAddPreview), () -> {
-                            StoryRecorder.getInstance(profileActivity.getParentActivity(), profileActivity.getCurrentAccount()).openBot(dialog_id, botPreviewsContainer.getCurrentLang(), null);
-                        })
-                        .addIf(botPreviewsContainer.getItemsCount() > 1 && !botPreviewsContainer.isSelectedAll(), R.drawable.tabs_reorder, getString(R.string.ProfileBotReorder), () -> {
-                            botPreviewsContainer.selectAll();
-                        })
-                        .addIf(botPreviewsContainer.getItemsCount() > 0, R.drawable.msg_select, getString(botPreviewsContainer.isSelectedAll() ? R.string.ProfileBotUnSelect : R.string.ProfileBotSelect), () -> {
-                            if (botPreviewsContainer.isSelectedAll()) {
-                                botPreviewsContainer.unselectAll();
-                            } else {
+                            .addIf(botPreviewsContainer.getItemsCount() < profileActivity.getMessagesController().botPreviewMediasMax, R.drawable.msg_addbot, getString(R.string.ProfileBotAddPreview), () -> {
+                                StoryRecorder.getInstance(profileActivity.getParentActivity(), profileActivity.getCurrentAccount()).openBot(dialog_id, botPreviewsContainer.getCurrentLang(), null);
+                            })
+                            .addIf(botPreviewsContainer.getItemsCount() > 1 && !botPreviewsContainer.isSelectedAll(), R.drawable.tabs_reorder, getString(R.string.ProfileBotReorder), () -> {
                                 botPreviewsContainer.selectAll();
-                            }
-                        })
-                        .addIf(!TextUtils.isEmpty(botPreviewsContainer.getCurrentLang()), R.drawable.msg_delete, LocaleController.formatString(R.string.ProfileBotRemoveLang, TranslateAlert2.languageName(botPreviewsContainer.getCurrentLang())), true, () -> {
-                            botPreviewsContainer.deleteLang(botPreviewsContainer.getCurrentLang());
-                        })
-                        .translate(0, -dp(52))
-                        .setDimAlpha(0)
-                        .show();
+                            })
+                            .addIf(botPreviewsContainer.getItemsCount() > 0, R.drawable.msg_select, getString(botPreviewsContainer.isSelectedAll() ? R.string.ProfileBotUnSelect : R.string.ProfileBotSelect), () -> {
+                                if (botPreviewsContainer.isSelectedAll()) {
+                                    botPreviewsContainer.unselectAll();
+                                } else {
+                                    botPreviewsContainer.selectAll();
+                                }
+                            })
+                            .addIf(!TextUtils.isEmpty(botPreviewsContainer.getCurrentLang()), R.drawable.msg_delete, LocaleController.formatString(R.string.ProfileBotRemoveLang, TranslateAlert2.languageName(botPreviewsContainer.getCurrentLang())), true, () -> {
+                                botPreviewsContainer.deleteLang(botPreviewsContainer.getCurrentLang());
+                            })
+                            .translate(0, -dp(52))
+                            .setDimAlpha(0)
+                            .show();
                     return;
                 }
                 if (getSelectedTab() == TAB_SAVED_DIALOGS) {
                     ItemOptions.makeOptions(profileActivity, photoVideoOptionsItem)
-                        .add(R.drawable.msg_discussion, getString(R.string.SavedViewAsMessages), () -> {
-                            profileActivity.getMessagesController().setSavedViewAs(false);
-                            Bundle args = new Bundle();
-                            args.putLong("user_id", profileActivity.getUserConfig().getClientUserId());
-                            profileActivity.presentFragment(new ChatActivity(args), true);
-                        })
-                        .addGap()
-                        .add(R.drawable.msg_home, getString(R.string.AddShortcut), () -> {
-                            try {
-                                profileActivity.getMediaDataController().installShortcut(profileActivity.getUserConfig().getClientUserId(), MediaDataController.SHORTCUT_TYPE_USER_OR_CHAT);
-                            } catch (Exception e) {
-                                FileLog.e(e);
-                            }
-                        })
-                        .add(R.drawable.msg_delete, getString(R.string.DeleteAll), () -> {
-                            TLRPC.User currentUser = profileActivity.getUserConfig().getCurrentUser();
-                            AlertsCreator.createClearOrDeleteDialogAlert(profileActivity, false, null, currentUser, false, true, true, (param) -> {
-                                profileActivity.finishFragment();
-                                if (profileActivity instanceof NotificationCenter.NotificationCenterDelegate) {
-                                    profileActivity.getNotificationCenter().removeObserver((NotificationCenter.NotificationCenterDelegate) profileActivity, NotificationCenter.closeChats);
-                                }
-                                profileActivity.getNotificationCenter().postNotificationName(NotificationCenter.closeChats);
-                                profileActivity.getNotificationCenter().postNotificationName(NotificationCenter.needDeleteDialog, dialog_id, currentUser, null, param);
+                            .add(R.drawable.msg_discussion, getString(R.string.SavedViewAsMessages), () -> {
                                 profileActivity.getMessagesController().setSavedViewAs(false);
-                            }, resourcesProvider);
-                        })
-                        .translate(0, -dp(52))
-                        .setDimAlpha(0)
-                        .show();
+                                Bundle args = new Bundle();
+                                args.putLong("user_id", profileActivity.getUserConfig().getClientUserId());
+                                profileActivity.presentFragment(new ChatActivity(args), true);
+                            })
+                            .addGap()
+                            .add(R.drawable.msg_home, getString(R.string.AddShortcut), () -> {
+                                try {
+                                    profileActivity.getMediaDataController().installShortcut(profileActivity.getUserConfig().getClientUserId(), MediaDataController.SHORTCUT_TYPE_USER_OR_CHAT);
+                                } catch (Exception e) {
+                                    FileLog.e(e);
+                                }
+                            })
+                            .add(R.drawable.msg_delete, getString(R.string.DeleteAll), () -> {
+                                TLRPC.User currentUser = profileActivity.getUserConfig().getCurrentUser();
+                                AlertsCreator.createClearOrDeleteDialogAlert(profileActivity, false, null, currentUser, false, true, true, (param) -> {
+                                    profileActivity.finishFragment();
+                                    if (profileActivity instanceof NotificationCenter.NotificationCenterDelegate) {
+                                        profileActivity.getNotificationCenter().removeObserver((NotificationCenter.NotificationCenterDelegate) profileActivity, NotificationCenter.closeChats);
+                                    }
+                                    profileActivity.getNotificationCenter().postNotificationName(NotificationCenter.closeChats);
+                                    profileActivity.getNotificationCenter().postNotificationName(NotificationCenter.needDeleteDialog, dialog_id, currentUser, null, param);
+                                    profileActivity.getMessagesController().setSavedViewAs(false);
+                                }, resourcesProvider);
+                            })
+                            .translate(0, -dp(52))
+                            .setDimAlpha(0)
+                            .show();
                     return;
                 }
                 View dividerView = new DividerCell(context);
@@ -2467,13 +2466,13 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
                 protected void updatedReordering(boolean reordering) {
                     saveItem.setVisibility(VISIBLE);
                     saveItem.animate()
-                        .alpha(reordering ? 1.0f : 0.0f)
-                        .scaleX(reordering ? 1.0f : 0.4f)
-                        .scaleY(reordering ? 1.0f : 0.4f)
-                        .withEndAction(() -> {
-                            if (!reordering) saveItem.setVisibility(VISIBLE);
-                        })
-                        .start();
+                            .alpha(reordering ? 1.0f : 0.0f)
+                            .scaleX(reordering ? 1.0f : 0.4f)
+                            .scaleY(reordering ? 1.0f : 0.4f)
+                            .withEndAction(() -> {
+                                if (!reordering) saveItem.setVisibility(VISIBLE);
+                            })
+                            .start();
                     updateOptionsSearch(true);
                 }
             };
@@ -3602,10 +3601,10 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
                 mediaPage.animationSupportingListView.setAdapter(animationSupportingPhotoVideoAdapter);
             }
             mediaPage.animationSupportingListView.setPadding(
-                mediaPage.animationSupportingListView.getPaddingLeft(),
-                changeColumnsTab == TAB_ARCHIVED_STORIES ? dp(64) : 0,
-                mediaPage.animationSupportingListView.getPaddingRight(),
-                isStoriesView() ? dp(72) : 0
+                    mediaPage.animationSupportingListView.getPaddingLeft(),
+                    changeColumnsTab == TAB_ARCHIVED_STORIES ? dp(64) : 0,
+                    mediaPage.animationSupportingListView.getPaddingRight(),
+                    isStoriesView() ? dp(72) : 0
             );
             mediaPage.buttonView.setVisibility(changeColumnsTab == TAB_STORIES && isStoriesView() ? View.VISIBLE : View.GONE);
 
@@ -3804,10 +3803,10 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
                 mediaPage.animationSupportingListView.setAdapter(animationSupportingPhotoVideoAdapter);
             }
             mediaPage.animationSupportingListView.setPadding(
-                mediaPage.animationSupportingListView.getPaddingLeft(),
-                (mediaPage.animationSupportingListView.hintPaddingTop = (changeColumnsTab == TAB_ARCHIVED_STORIES ? dp(64) : 0)),
-                mediaPage.animationSupportingListView.getPaddingRight(),
-                (mediaPage.animationSupportingListView.hintPaddingBottom = (isStoriesView() ? dp(72) : 0))
+                    mediaPage.animationSupportingListView.getPaddingLeft(),
+                    (mediaPage.animationSupportingListView.hintPaddingTop = (changeColumnsTab == TAB_ARCHIVED_STORIES ? dp(64) : 0)),
+                    mediaPage.animationSupportingListView.getPaddingRight(),
+                    (mediaPage.animationSupportingListView.hintPaddingBottom = (isStoriesView() ? dp(72) : 0))
             );
             mediaPage.buttonView.setVisibility(changeColumnsTab == TAB_STORIES ? View.VISIBLE : View.GONE);
             mediaPage.buttonView.setVisibility(changeColumnsTab == TAB_STORIES ? View.VISIBLE : View.GONE);
@@ -4255,16 +4254,16 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
             return false;
         }
         return (
-            type != TAB_PHOTOVIDEO &&
-            type != TAB_STORIES &&
-            type != TAB_ARCHIVED_STORIES &&
-            type != TAB_VOICE &&
-            type != TAB_GIF &&
-            type != TAB_COMMON_GROUPS &&
-            type != TAB_SAVED_DIALOGS &&
-            type != TAB_RECOMMENDED_CHANNELS &&
-            type != TAB_BOT_PREVIEWS &&
-            type != TAB_GIFTS
+                type != TAB_PHOTOVIDEO &&
+                        type != TAB_STORIES &&
+                        type != TAB_ARCHIVED_STORIES &&
+                        type != TAB_VOICE &&
+                        type != TAB_GIF &&
+                        type != TAB_COMMON_GROUPS &&
+                        type != TAB_SAVED_DIALOGS &&
+                        type != TAB_RECOMMENDED_CHANNELS &&
+                        type != TAB_BOT_PREVIEWS &&
+                        type != TAB_GIFTS
         );
     }
 
@@ -4413,35 +4412,35 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
             int reqIndex = sharedMediaData[type].requestIndex;
             int reqId = ConnectionsManager.getInstance(profileActivity.getCurrentAccount()).sendRequest(req, (response, error) ->
                     AndroidUtilities.runOnUIThread(() ->
-                    NotificationCenter.getInstance(profileActivity.getCurrentAccount()).doOnIdle(() -> {
-                if (error != null) {
-                    return;
-                }
-                if (reqIndex != sharedMediaData[type].requestIndex) {
-                    return;
-                }
-                TLRPC.TL_messages_searchResultsPositions res = (TLRPC.TL_messages_searchResultsPositions) response;
-                sharedMediaData[type].fastScrollPeriods.clear();
-                for (int i = 0, n = res.positions.size(); i < n; i++) {
-                    TLRPC.TL_searchResultPosition serverPeriod = res.positions.get(i);
-                    if (serverPeriod.date != 0) {
-                        Period period = new Period(serverPeriod);
-                        sharedMediaData[type].fastScrollPeriods.add(period);
-                    }
-                }
-                Collections.sort(sharedMediaData[type].fastScrollPeriods, (period, period2) -> period2.date - period.date);
-                sharedMediaData[type].setTotalCount(res.count);
-                sharedMediaData[type].fastScrollDataLoaded = true;
-                if (!sharedMediaData[type].fastScrollPeriods.isEmpty()) {
-                    for (int i = 0; i < mediaPages.length; i++) {
-                        if (mediaPages[i].selectedType == type) {
-                            mediaPages[i].fastScrollEnabled = true;
-                            updateFastScrollVisibility(mediaPages[i], true);
-                        }
-                    }
-                }
-                photoVideoAdapter.notifyDataSetChanged();
-            })));
+                            NotificationCenter.getInstance(profileActivity.getCurrentAccount()).doOnIdle(() -> {
+                                if (error != null) {
+                                    return;
+                                }
+                                if (reqIndex != sharedMediaData[type].requestIndex) {
+                                    return;
+                                }
+                                TLRPC.TL_messages_searchResultsPositions res = (TLRPC.TL_messages_searchResultsPositions) response;
+                                sharedMediaData[type].fastScrollPeriods.clear();
+                                for (int i = 0, n = res.positions.size(); i < n; i++) {
+                                    TLRPC.TL_searchResultPosition serverPeriod = res.positions.get(i);
+                                    if (serverPeriod.date != 0) {
+                                        Period period = new Period(serverPeriod);
+                                        sharedMediaData[type].fastScrollPeriods.add(period);
+                                    }
+                                }
+                                Collections.sort(sharedMediaData[type].fastScrollPeriods, (period, period2) -> period2.date - period.date);
+                                sharedMediaData[type].setTotalCount(res.count);
+                                sharedMediaData[type].fastScrollDataLoaded = true;
+                                if (!sharedMediaData[type].fastScrollPeriods.isEmpty()) {
+                                    for (int i = 0; i < mediaPages.length; i++) {
+                                        if (mediaPages[i].selectedType == type) {
+                                            mediaPages[i].fastScrollEnabled = true;
+                                            updateFastScrollVisibility(mediaPages[i], true);
+                                        }
+                                    }
+                                }
+                                photoVideoAdapter.notifyDataSetChanged();
+                            })));
             ConnectionsManager.getInstance(profileActivity.getCurrentAccount()).bindRequestToGuid(reqId, profileActivity.getClassGuid());
         }
     }
@@ -4581,17 +4580,17 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
                     }
                 }
                 AlertDialog dialog = new AlertDialog.Builder(getContext(), resourcesProvider)
-                    .setTitle(selectedDialogs.size() == 1 ? LocaleController.formatString(firstDialogSelf ? R.string.ClearHistoryMyNotesTitle : R.string.ClearHistoryTitleSingle2, firstDialog) : LocaleController.formatPluralString("ClearHistoryTitleMultiple", selectedDialogs.size()))
-                    .setMessage(selectedDialogs.size() == 1 ? LocaleController.formatString(firstDialogSelf ? R.string.ClearHistoryMyNotesMessage : R.string.ClearHistoryMessageSingle, firstDialog) : LocaleController.formatPluralString("ClearHistoryMessageMultiple", selectedDialogs.size()))
-                    .setPositiveButton(getString(R.string.Remove), (di, w) -> {
-                        for (int i = 0; i < selectedDialogs.size(); ++i) {
-                            final long did = selectedDialogs.get(i);
-                            profileActivity.getMessagesController().deleteSavedDialog(did);
-                        }
-                        closeActionMode();
-                    })
-                    .setNegativeButton(getString(R.string.Cancel), null)
-                    .create();
+                        .setTitle(selectedDialogs.size() == 1 ? LocaleController.formatString(firstDialogSelf ? R.string.ClearHistoryMyNotesTitle : R.string.ClearHistoryTitleSingle2, firstDialog) : LocaleController.formatPluralString("ClearHistoryTitleMultiple", selectedDialogs.size()))
+                        .setMessage(selectedDialogs.size() == 1 ? LocaleController.formatString(firstDialogSelf ? R.string.ClearHistoryMyNotesMessage : R.string.ClearHistoryMessageSingle, firstDialog) : LocaleController.formatPluralString("ClearHistoryMessageMultiple", selectedDialogs.size()))
+                        .setPositiveButton(getString(R.string.Remove), (di, w) -> {
+                            for (int i = 0; i < selectedDialogs.size(); ++i) {
+                                final long did = selectedDialogs.get(i);
+                                profileActivity.getMessagesController().deleteSavedDialog(did);
+                            }
+                            closeActionMode();
+                        })
+                        .setNegativeButton(getString(R.string.Cancel), null)
+                        .create();
                 profileActivity.showDialog(dialog);
                 TextView button = (TextView) dialog.getButton(DialogInterface.BUTTON_POSITIVE);
                 if (button != null) {
@@ -6391,10 +6390,10 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
             viewPool = mediaPages[a].viewPool;
             mediaPages[a].listView.setPinnedHeaderShadowDrawable(null);
             mediaPages[a].listView.setPadding(
-                mediaPages[a].listView.getPaddingLeft(),
-                (mediaPages[a].listView.hintPaddingTop = mediaPages[a].selectedType == TAB_ARCHIVED_STORIES ? dp(64) : 0),
-                mediaPages[a].listView.getPaddingRight(),
-                (mediaPages[a].listView.hintPaddingTop = isStoriesView() ? dp(72) : 0)
+                    mediaPages[a].listView.getPaddingLeft(),
+                    (mediaPages[a].listView.hintPaddingTop = mediaPages[a].selectedType == TAB_ARCHIVED_STORIES ? dp(64) : 0),
+                    mediaPages[a].listView.getPaddingRight(),
+                    (mediaPages[a].listView.hintPaddingTop = isStoriesView() ? dp(72) : 0)
             );
             mediaPages[a].buttonView.setVisibility(mediaPages[a].selectedType == TAB_STORIES && isStoriesView() ? View.VISIBLE : View.GONE);
 
@@ -6851,7 +6850,7 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
                     if (forward) {
                         storiesList.load(false, 30);
                     }
-                }).addBottomClip(profileActivity instanceof ProfileActivity && ((ProfileActivity) profileActivity).myProfile ? dp(68) : 0));
+                }).addBottomClip(profileActivity instanceof ProfileActivity && ((ProfileActivity) profileActivity).isMyProfile() ? dp(68) : 0));
             }
         }
         updateForwardItem();
@@ -8790,8 +8789,8 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
 
             gradientView = new View(context);
             gradientView.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, new int[] {
-                Theme.multAlpha(Theme.getColor(Theme.key_windowBackgroundWhite, resourcesProvider), .4f),
-                Theme.getColor(Theme.key_windowBackgroundWhite, resourcesProvider)
+                    Theme.multAlpha(Theme.getColor(Theme.key_windowBackgroundWhite, resourcesProvider), .4f),
+                    Theme.getColor(Theme.key_windowBackgroundWhite, resourcesProvider)
             }));
             addView(gradientView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 60));
 
@@ -10121,11 +10120,11 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
 
         if (profileActivity.hasStoryViewer()) return;
         BulletinFactory.of(profileActivity).createSimpleBulletin(
-            R.raw.speed_limit,
-            LocaleController.getString(isUpload ? R.string.UploadSpeedLimited : R.string.DownloadSpeedLimited),
-            AndroidUtilities.replaceCharSequence("%d", AndroidUtilities.premiumText(LocaleController.getString(isUpload ? R.string.UploadSpeedLimitedMessage : R.string.DownloadSpeedLimitedMessage), () -> {
-                profileActivity.presentFragment(new PremiumPreviewFragment(isUpload ? "upload_speed" : "download_speed"));
-            }), boldN)
+                R.raw.speed_limit,
+                LocaleController.getString(isUpload ? R.string.UploadSpeedLimited : R.string.DownloadSpeedLimited),
+                AndroidUtilities.replaceCharSequence("%d", AndroidUtilities.premiumText(LocaleController.getString(isUpload ? R.string.UploadSpeedLimitedMessage : R.string.DownloadSpeedLimitedMessage), () -> {
+                    profileActivity.presentFragment(new PremiumPreviewFragment(isUpload ? "upload_speed" : "download_speed"));
+                }), boldN)
         ).setDuration(8000).show(true);
     }
 

@@ -490,6 +490,9 @@ public abstract class RightSlidingDialogContainer extends FrameLayout {
         return currentFragment;
     }
 
+    public BaseFragment getCurrentFragment() {
+        return currentFragment;
+    }
     private Paint actionModePaint;
 
     @Override
